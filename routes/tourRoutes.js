@@ -6,8 +6,9 @@ const router = express.Router()
 router.param('id', tourController.checkID)
 
 router.get('/', tourController.getAllTours)
-router.get('/:id', tourController.getTour)
 router.post('/', tourController.checkBody, tourController.createTour)
+
+router.get('/:id', tourController.getTour)
 router.patch('/:id', tourController.updateTour)
 router.delete('/:id', tourController.deleteTour)
 
