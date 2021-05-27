@@ -13,9 +13,7 @@ mongoose.connect(DB, {
   useCreateIndex: true
 }).then(() => console.log('DB connection successful'))
 
-// console.log(process.env)
-
-const port = process.env.PORT
+const port = process.env.PORT || 3200
 app.listen(port, () => {
   console.log("Server Started")
 })
