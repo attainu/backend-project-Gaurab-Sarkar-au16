@@ -1,5 +1,14 @@
 const Tour = require('./../models/tourModel')
 
+// alias work done by middleware
+// limit=5&sort=-ratingAverage,price
+exports.aliasTopTours = (req, res, next) => {
+  req.query.limit = '5'
+  req.query.sort = '-ratingsAverage,price'
+  req.query.fields = 'name,price,ratingsAverage,summary,difficulty'
+  next()
+}
+
 exports.getAllTours = async (req, res) => {
   try {
     //BUILD QUERY
@@ -21,6 +30,27 @@ exports.getAllTours = async (req, res) => {
       query = query.sort(sortBy) 
     } else {
       query = query.sort('-createdAt')
+    }
+
+    // 4) Field limiting
+    if (req.query.fields) {
+      const fields = req.query.fields.split(',').join(' ')
+      query = query.select(fields)
+    } else {
+      query = query.select('-__v')
+    }
+
+    // 5) Pagination
+    const page = req.query.page * 1 || 1
+    const limit = req.query.limit * 1 || 100
+    const skip = (page - 1) * limit 
+    
+    query = query.skip(skip).limit(limit) 
+    // query.skip(10).limit(10) : skip 10 reults, show maximum of 10 results
+
+    if (req.query.page) {
+      const numTours = await Tour.countDocuments()
+      if(skip >= numTours) throw new Error('This page does not exists')
     }
 
     // EXECUTE QUERY
