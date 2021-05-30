@@ -9,15 +9,15 @@ const tourSchema = new mongoose.Schema({
   },
   duration: {
     type: Number,
-    required: [true, 'Tour must have a duration']
+    required: [true, 'A tour must have a duration']
   },
   maxGroupSize: {
     type: Number,
-    required: [true, 'Tour must have a group size']
+    required: [true, 'A tour must have a group size']
   },
   difficulty: {
     type: String,
-    required: [true, 'Tour must have difficulty']
+    required: [true, 'A tour must have difficulty']
   },
   ratingAverage:{ 
     type: Number,
@@ -49,10 +49,18 @@ const tourSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now(),
-    select:false
+    select: false
   },
   startDates: [Date]
+}, {
+  toJSON: { virtuals: true },
+  toObject: { virtual: true }
 })
+
+tourSchema.virtual('durationWeeks').get(function() {
+  return this.duration / 7
+})
+
 const Tour = mongoose.model('Tour', tourSchema)
 
 module.exports = Tour
