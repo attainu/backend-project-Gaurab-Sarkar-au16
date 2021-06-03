@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "nodemon server.js",
-    "start:prod": "NODE_ENV=production nodemon server.js"
+    "start:prod": "SET NODE_ENV=development&&nodemon server.js"
   },
   "author": "Gaurab Sarkar",
   "license": "ISC",
