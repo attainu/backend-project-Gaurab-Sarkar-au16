@@ -2,10 +2,11 @@
   "name": "green_escapes",
   "version": "1.0.0",
   "description": "tour website close to nature sites",
-  "main": "server.js",
+  "main": "app.js",
   "scripts": {
     "start": "nodemon server.js",
-    "start:prod": "SET NODE_ENV=development&&nodemon server.js"
+    "start:prod": "SET NODE_ENV=production&&nodemon server.js",
+    "debug": "ndb server.js"
   },
   "author": "Gaurab Sarkar",
   "license": "ISC",

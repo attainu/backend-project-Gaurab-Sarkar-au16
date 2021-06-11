@@ -1,119 +1,74 @@
-const mongoose = require('mongoose')
-const slugify = require('slugify')
-const validator = require('validator')
+const mongoose = require('mongoose');
+const validator = require('validator');
+const bcrypt = require('bcryptjs');
 
-const tourSchema = new mongoose.Schema({
+const userSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'Tour must have name'],
+    required: [true, 'Please tell us your name'],
+  },
+  email: {
+    type: String,
+    required: [true, 'Please provide your email'],
     unique: true,
-    trim: true,
-    maxlength: [40, 'A tour name must have less or equal then 40 characters'],
-    minlength: [10, 'A tour name must have more or equal then 10 characters'],
-    // validate: [validator.isAlpha, 'Tour name should have only characters']
+    lowercase: true,
+    validate: [validator.isEmail, 'Please provide avalid email'],
   },
-  slug: String,
-  duration: {
-    type: Number,
-    required: [true, 'A tour must have a duration']
-  },
-  maxGroupSize: {
-    type: Number,
-    required: [true, 'A tour must have a group size']
-  },
-  difficulty: {
+  photo: String,
+  password: {
     type: String,
-    required: [true, 'A tour must have difficulty'],
-    enum: {
-      values: ['easy', 'medium', 'difficult'],
-      message: 'Difficulty is either: easy, medium, difficult'
-    }
+    required: [true, 'Please provide a password'],
+    minlength: 8,
+    select: false,
   },
-  ratingAverage:{ 
-    type: Number,
-    default: 4.5,
-    min: [1, 'Rating must be above or equal to 1.0'],
-    max: [5, 'Rating must be below or equal to 5.0']
-  },
-  ratingQuantity:{ 
-    type: Number,
-    default: 0
-  },
-  price: {
-    type: Number,
-    required: [true, 'Tour must have price']
-  },
-  priceDiscount: {
-    type: Number,
+  passwordConfirm: {
+    type: String,
+    required: [true, 'Please confirm your password'],
     validate: {
-      validator: function() {
-      // this points o current document
-      return val < this.price 
+      // This only works for CREATE and SAVE!! not on UPDATE
+      validator: function (el) {
+        return el === this.password;
+      },
+      message: 'Passwords are not the same!',
     },
-    message: 'Discount should be less than original price'}
   },
-  summary: {
-    type: String,
-    trim: true,
-    required: [true, 'Tour must have a description']
-  }, 
-  description: {
-    type: String,
-    trim: true
-  },
-  imageCover: {
-    type: String,
-    required: [true, 'Tour must have a cover image']
-  },
-  images: [String],
-  createdAt: {
+  passwordChangedAt: {
     type: Date,
-    default: Date.now(),
-    select: false
-  },
-  startDates: [Date],
-  secretTour: {
-    type: Boolean,
-    default: false
-  }
-}, {
-  toJSON: { virtuals: true },
-  toObject: { virtual: true }
-})
-
-tourSchema.virtual('durationWeeks').get(function() {
-  return this.duration / 7
-})
-
-//DOCUMENT MIDDLEWARE: runs before save() and .create()
-// this points to the current document
-tourSchema.pre('save', function(next){
-  this.slug = slugify(this.name, { lower: true })
-  next()
+    default: Date.now,
+    required: true
+  }//not working properly
 });
 
-//QUERY MIDDLEWARE
-// this points to the current query
-tourSchema.pre(/^find/, function(next) {
-  this.find({ secretTour: { $ne: true } })
+userSchema.pre('save', async function (next) {
+  // Only run this function if password was actually modified
+  if (!this.isModified('password')) return next();
 
-  this.start = Date.now()
-  next()
-})
+  // Hash the password with cost 12
+  this.password = await bcrypt.hash(this.password, 12);
+  // Delete the passwordConfirm field
+  this.passwordConfirm = undefined;
+  next();
+});
 
-tourSchema.post(/^find/, function(docs, next) {
-  console.log(`Query took ${Date.now() - this.start} milliseconds!`)
-  // console.log(docs)
-  next()
-})
+userSchema.methods.correctPassword = async function (
+  candidatePassword,
+  userPassword
+) {
+  return await bcrypt.compare(candidatePassword, userPassword);
+};
 
-//AGGREGATION MIDDLEWARE
-tourSchema.pre('aggregate', function(next) {
-  this.pipeline().unshift({ $match: { secretTour: { $ne: true } } })
-  console.log(this.pipeline())
-  next()
-})
+// in instance method this points to current document
+userSchema.methods.changedPasswordAfter = function (JWTTimestamp) {
+  if (this.passwordChangedAt) {
+    const changedTimeStamp = parseInt(this.passwordChangedAt.getTime() / 1000, 10)
 
-const Tour = mongoose.model('Tour', tourSchema)
+    // console.log(changedTimeStamp, JWTTimestamp);
+    return JWTTimestamp < changedTimeStamp;
+  }
+  // false means NOT changed
+  return false;
+};
 
-module.exports = Tour
+const User = mongoose.model('User', userSchema);
+
+module.exports = User;
