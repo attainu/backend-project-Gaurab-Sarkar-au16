@@ -1,54 +1,79 @@
-const mongoose = require('mongoose')
-const validator = require('validator')
-const bcrypt = require('bcryptjs')
+const mongoose = require('mongoose');
+const validator = require('validator');
+const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
-  name:{
+  name: {
     type: String,
-    required: [true, 'Please tell us your name']
+    required: [true, 'Please tell us your name'],
   },
-  email:{
+  email: {
     type: String,
     required: [true, 'Please provide your email'],
     unique: true,
     lowercase: true,
-    validate: [validator.isEmail, 'Please provide avalid email']
+    validate: [validator.isEmail, 'Please provide avalid email'],
   },
   photo: String,
-  password:{
+  role: {
+    type: String,
+    enum: ['user', 'guide', 'tour-guide', 'admin'],
+    default: 'user'
+    // required: true
+  },
+  password: {
     type: String,
     required: [true, 'Please provide a password'],
     minlength: 8,
-    select: false
+    select: false,
   },
-  passwordConfirm:{
+  passwordConfirm: {
     type: String,
     required: [true, 'Please confirm your password'],
     validate: {
       // This only works for CREATE and SAVE!! not on UPDATE
-      validator: function(el) {
-        return el === this.password
+      validator: function (el) {
+        return el === this.password;
       },
-      message: 'Passwords are not the same!'
-    }
+      message: 'Passwords are not the same!',
+    },
   },
-})
+  passwordChangedAt: {
+    type: Date,
+    default: Date.now
+  }
+});
 
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
   // Only run this function if password was actually modified
-  if(!this.isModified('password')) return next()
+  if (!this.isModified('password')) return next();
 
   // Hash the password with cost 12
-  this.password = await bcrypt.hash(this.password, 12)
+  this.password = await bcrypt.hash(this.password, 12);
   // Delete the passwordConfirm field
-  this.passwordConfirm = undefined
-  next()
-})
+  this.passwordConfirm = undefined;
+  next();
+});
 
-userSchema.methods.correctPassword = async function(candidatePassword, userPassword) {
-  return await bcrypt.compare(candidatePassword, userPassword)
-}
+userSchema.methods.correctPassword = async function (
+  candidatePassword,
+  userPassword
+) {
+  return await bcrypt.compare(candidatePassword, userPassword);
+};
 
-const User = mongoose.model('User', userSchema)
+// in instance method this points to current document
+userSchema.methods.changedPasswordAfter = function (JWTTimestamp) {
+  if (this.passwordChangedAt) {
+    const changedTimeStamp = parseInt(this.passwordChangedAt.getTime() / 1000, 10)
 
-module.exports = User
+    // console.log(changedTimeStamp, JWTTimestamp);
+    return JWTTimestamp < changedTimeStamp;
+  }
+  // false means NOT changed
+  return false;
+};
+
+const User = mongoose.model('User', userSchema);
+
+module.exports = User;
